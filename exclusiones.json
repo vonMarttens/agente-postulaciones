@@ -1,0 +1,74 @@
+{
+  "empresas": [
+    "DIS AG",
+    "PS Direkt",
+    "Hays",
+    "Staffinity",
+    "SELLWERK",
+    "Randstad",
+    "Ferchau",
+    "Akkodis",
+    "BESTpro",
+    "Neo Temp",
+    "AUREA",
+    "Creativ Personal",
+	"Michael Page",
+    "BPS Personal"
+  ],
+  "titulos_nivel_alto": [
+    "Senior", "Lead", "Head of", "Leiter", "Leitung",
+    "Director", "Direktor", "Principal", "Chief",
+    "Teamleiter", "Abteilungsleiter", "Bereichsleiter",
+    "Vorstand", "Geschäftsführ"
+  ],
+  "titulos_formativos": [
+    "Praktikum", "Praktikant", "Werkstudent",
+    "Ausbildung", "Auszubildende", "Azubi",
+    "Trainee", "Duales Studium", "Dualer Student",
+    "Abschlussarbeit", "Bachelorarbeit", "Masterarbeit",
+    "Schüler", "Studentische Hilfskraft", "Minijob"
+  ],
+  "titulos_fuera_perfil": [
+    "Vertrieb", "Außendienst", "Akquise",
+    "Social Media", "Pflege", "Erzieher", "Koch",
+    "Fahrer", "Lager", "Produktion", "Monteur",
+    "Elektriker", "Mechaniker", "Reinigung",
+    "Sicherheitsmitarbeiter", "Servicekraft"
+  ],
+  "titulos_tecnicos_ajenos": [
+    "Cloud", "Informatiker", "Mathematiker",
+    "Aktuar", "Security Engineer", "Cybersecurity",
+    "Product Owner"
+  ],
+  "titulos_otros_ajenos": [
+    "Buchhaltung", "Steuerfachangestellte", "Vertragsmanager",
+    "Salesperson", "Dozent",
+    "TikTok", "Instagram", "Facebook", "Youtube",
+    "Social-Media-Manager", "Ankauf", "Kalkulator",
+    "Kommunikationsdesigner", "Organisationsentwickler",
+    "Rechtsanw", "Immobilien", "Regulatorik",
+    "Studienassistenz", "Texter"
+  ],
+  "titulos_no_deseados": [
+    "Advertising", "Factoring"
+  ],
+  "siglas_titulo": [
+    "SEA", "SAP"
+  ],
+  "excepciones_titulo": [
+  "Vertriebscontrolling",
+  "Vertriebscontroller"
+  ],
+  "ruido_muestreo": [
+  "Maschinen", "CNC", "Anlagenführer", "Chemikant", "Polier",
+  "Schweiß", "Schlosser", "Metallbau", "Lackier", "Montage",
+  "Elektro", "Mechatroniker", "Servicetechniker", "Sanitär",
+  "Kommissionier", "Verpack", "Packer", "Logistik", "Postbote",
+  "Disponent", "Spedition", "Kranführer", "Helfer", 
+  "Recruit", "Talent Acquisition", "Payroll",
+  "Entgeltabrechnung", "Buchhalt", "Rechnungswesen",
+  "Einkauf", "Einkäufer", "Verkäufer", "Filialleiter",
+  "Marktleitung", "Küche", "Empfang", "Front Office",
+  "MFA", "Facharzt", "Pädagogisch", "Hausmeister"
+  ]
+}

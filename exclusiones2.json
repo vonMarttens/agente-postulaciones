@@ -1,0 +1,146 @@
+{
+  "_nota": "Segundo filtro. Se aplica a ofertas YA descargadas, sobre las lineas TITULO: y EMPRESA: de cada .txt. Lo usa titulos_filtrados.py, nunca buscar_ofertas.py.",
+
+  "empresas": [
+    "Michael Page",
+    "YER",
+    "Orizon",
+    "AMADEUS FIRE",
+    "Robert Half",
+    "avivar experts",
+    "TRICONNECT",
+    "Jentges",
+    "Monika Franz",
+    "OINK Recruiting",
+    "Koenig Fachpersonal",
+    "König Fachpersonal",
+    "best talent",
+    "Langenhagen",
+    "Ruhr Placement",
+    "LAS Recruitment",
+    "WeMatch",
+    "Cobalt Deutschland",
+    "simplecon",
+    "Victoria Consulting",
+    "expertwork",
+    "Jobactive",
+    "imperex",
+    "START NRW",
+    "cleo",
+    "Vonovia Recruiting",
+    "GC Guides",
+    "Karin Lehmann",
+    "Horus Consultants",
+    "Morgan Philips",
+    "Attikon",
+    "Permanent Placement",
+    "Personalvermittlung",
+    "Personalmanagement",
+    "Zeitarbeit"
+  ],
+
+  "titulos_contabilidad": [
+    "Buchhalter",
+    "Buchhaltung",
+    "Accounting",
+    "Accountant",
+    "Rechnungswesen",
+    "Steuerberater",
+    "Steuerfachwirt",
+    "Steuerfachangestellte",
+    "Wirtschaftspruef",
+    "Wirtschaftsprüf",
+    "Transfer Pricing",
+    "Consultant Tax",
+    "Jahresabschluss"
+  ],
+
+  "titulos_controlling_ajeno": [
+    "Maintenance Controller",
+    "Fertigungssteuerer",
+    "Materialplaner",
+    "Flight Dispatcher",
+    "Dokumentenpruefer",
+    "Dokumentenprüfer",
+    "Technischer Controller",
+    "Logistikcontroller",
+    "Werkscontroller",
+    "Energiewirtschaftscontroller",
+    "Bauwesen",
+    "Baustellen",
+    "Hochbau",
+    "Sondermaschinenbau",
+    "Projektingenieur",
+    "Kaeltetechnik",
+    "Kältetechnik"
+  ],
+
+  "titulos_sector_ajeno": [
+    "Klinik",
+    "Krankenhaus",
+    "Gesundheitswesen",
+    "Aerztekammer",
+    "Ärztekammer",
+    "Hospital",
+    "Pflege",
+    "Lehrkraft"
+  ],
+
+  "titulos_funcion_ajena": [
+    "Teamassistenz",
+    "Projektassistenz",
+    "Betriebsassistent",
+    "Assistentin",
+    "Property Manager",
+    "Real Estate",
+    "Immobilien",
+    "Payroll",
+    "HR Specialist",
+    "Supply Chain",
+    "Procurement",
+    "Einkauf",
+    "Warenwirtschaft",
+    "Qualitaetsmanagement",
+    "Qualitätsmanagement",
+    "Restrukturierungsberater"
+  ],
+
+  "titulos_tecnicos": [
+    "Solution Architect",
+    "Anwendungsbetreuer",
+    "Data Engineer",
+    "Microsoft Dynamics",
+    "Functional Consultant",
+    "Mechatroniker"
+  ],
+
+  "titulos_nivel_alto": [
+    "Head of",
+    "Head f m d",
+    "Experienced",
+    "Senior",
+    "Leiter",
+    "Leitung"
+  ],
+
+  "siglas_titulo": [
+    "MRP",
+    "OCC",
+    "MCC",
+    "ERP",
+    "SAP",
+    "TGA",
+    "HLKS"
+  ],
+
+  "excepciones_titulo": [
+    "Digital Process",
+    "Process Innovation",
+    "Digitalisierung",
+    "Prozessmanagement",
+    "Prozessoptimierung",
+    "Business Analyst",
+    "Vertriebscontrolling",
+    "Vertriebscontroller"
+  ]
+}

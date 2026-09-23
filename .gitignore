@@ -1,0 +1,33 @@
+# ── Secretos ──────────────────────────────────────
+credentials.json
+token.json
+
+# ── Perfil personal ───────────────────────────────
+/.claude/skills/
+/.claude/agents/
+perfil.json
+CLAUDE.md
+README.md
+Lebenslauf.typ
+Anschreiben.typ
+contexto/
+referencia/
+perfil_arbeitsagentur/
+/*.pdf
+/*.jpg
+/*.png
+
+# ── Datos de trabajo ──────────────────────────────
+ofertas/
+salidas/
+muestreo/
+logs/
+
+# ── Estado local ──────────────────────────────────
+config_automatico.json
+inventario.csv
+orquestador.txt
+
+# ── Python ────────────────────────────────────────
+__pycache__/
+*.pyc

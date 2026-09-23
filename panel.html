@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agente de postulaciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Diseño anterior: Barlow, fondo niebla, tarjetas claras. Lienzo ancho
+     y tipografía algo más chica, para leerlo al 100 %. */
+  :root {
+    --niebla:   #E6EBEF;
+    --papel:    #F7F9FA;
+    --tinta:    #1C2833;
+    --gris:     #5E6E7C;
+    --tenue:    #A9B5BF;
+    --verde:    #2E5E8E;   /* agente: lo que puede trabajar solo */
+    --marron:   #B7791F;   /* espera una acción tuya */
+    --rojo:     #A6423A;   /* falló o ya no sirve */
+    --verde-claro: #3F7A56; /* terminado */
+    --koralle:  #C2691C;   /* aviso de cupo */
+    --texto: "Barlow", "Segoe UI", system-ui, sans-serif;
+    --cartel: "Barlow Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--niebla); color: var(--tinta);
+    font: 400 15px/1.5 var(--texto);
+  }
+  h1, h2, h3 { margin: 0; font-family: var(--cartel); line-height: 1.05; }
+  h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 22px; font-weight: 600; }
+  h3 { font-size: 18px; font-weight: 600; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; background: none; border: 0; }
+
+  .marco { max-width: 1400px; margin: 0 auto; padding: 28px 28px 56px; }
+
+  /* ── Cabecera ─────────────────────────────────────────── */
+  header {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 18px; flex-wrap: wrap; padding-bottom: 16px;
+    border-bottom: 2px solid var(--tinta);
+  }
+  .resumen { margin: 5px 0 0; color: var(--gris); }
+  .resumen b { color: var(--tinta); font-weight: 600; }
+  .refrescar { display: flex; align-items: center; gap: 12px; }
+  .hora { color: var(--gris); font-size: 13px; }
+
+  .boton {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 8px 16px; border-radius: 999px;
+    border: 2px solid var(--verde); background: var(--verde); color: var(--papel);
+    font: 600 15px/1 var(--cartel); letter-spacing: .02em;
+  }
+  .boton.claro { background: transparent; color: var(--verde); }
+  .boton.oscuro { border-color: var(--tinta); background: var(--tinta); }
+  .boton.oscuro:hover { background: var(--verde); border-color: var(--verde); }
+  .boton:disabled { opacity: .35; cursor: not-allowed; }
+  .boton svg { width: 14px; height: 14px; }
+  .boton[aria-busy="true"] svg { animation: girar .9s linear infinite; }
+  @keyframes girar { to { transform: rotate(360deg); } }
+
+  .aviso {
+    margin: 16px 0 0; padding: 10px 14px; border-left: 4px solid var(--rojo);
+    background: var(--papel); color: var(--rojo);
+  }
+  .aviso:empty { display: none; }
+
+  /* ── Dos columnas: el panel va a la izquierda ─────────── */
+  .columnas {
+    display: grid; grid-template-columns: 330px minmax(0, 1fr);
+    gap: 32px; align-items: start; margin-top: 24px;
+  }
+  .lateral { position: sticky; top: 20px; order: -1; background: var(--papel); border-radius: 12px; }
+
+  /* ── La línea del proceso ─────────────────────────────── */
+  .linea { list-style: none; margin: 0; padding: 0; position: relative; }
+  .linea::before {
+    content: ""; position: absolute; left: 11px; top: 16px; bottom: 16px;
+    width: 5px; border-radius: 3px; background: var(--verde);
+  }
+  .parada { position: relative; padding: 5px 0 5px 42px; }
+  .parada::before {
+    content: ""; position: absolute; left: 3px; top: 16px;
+    width: 21px; height: 21px; border-radius: 50%;
+    background: var(--papel); border: 5px solid var(--color, var(--verde));
+  }
+  .parada > .fila {
+    display: grid; align-items: center; gap: 8px 14px;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    background: var(--papel); border-radius: 10px; padding: 9px 14px;
+  }
+  .nombre {
+    display: flex; align-items: baseline; gap: 9px; min-width: 0; text-align: left;
+    font: 600 19px/1.15 var(--cartel); letter-spacing: .01em;
+  }
+  .nombre:disabled { cursor: default; }
+  .nombre .flecha { font-size: 11px; color: var(--gris); }
+  .nombre[aria-expanded="true"] .flecha { rotate: 90deg; }
+
+  .cantidad { display: flex; align-items: center; gap: 6px; color: var(--gris); }
+  .cantidad input {
+    width: 4.2em; padding: 4px 6px; text-align: right;
+    border: 1.5px solid var(--tenue); border-radius: 6px; background: #fff;
+    font: 600 16px/1 var(--cartel); color: var(--tinta); font-variant-numeric: tabular-nums;
+  }
+  .total {
+    font: 600 22px/1 var(--cartel); color: var(--tinta);
+    font-variant-numeric: tabular-nums; min-width: 2.2ch; text-align: right;
+  }
+
+  .incluir {
+    display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px;
+    border-radius: 999px; border: 2px solid var(--color, var(--verde));
+    color: var(--color, var(--verde)); font: 600 14px/1 var(--cartel);
+  }
+  .incluir[aria-pressed="true"] { background: var(--color, var(--verde)); color: var(--papel); }
+  .incluir svg { width: 12px; height: 12px; }
+  .solo {
+    height: 34px; padding: 0 8px; color: var(--gris);
+    font: 600 14px/1 var(--cartel); text-decoration: underline; text-underline-offset: 3px;
+  }
+  .solo:hover { color: var(--tinta); }
+  .incluir:disabled, .solo:disabled, .cantidad input:disabled { opacity: .35; cursor: not-allowed; }
+
+  .nota { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--gris); }
+  .carpetas {
+    grid-column: 1 / -1; margin: 4px 0 0; padding: 9px 0 0;
+    border-top: 1px solid var(--niebla); list-style: none;
+    columns: 2 240px; column-gap: 22px; font-size: 13px; color: var(--gris);
+  }
+  .carpetas li { break-inside: avoid; padding: 2px 0; overflow-wrap: anywhere; }
+
+  .ramal { list-style: none; margin: 6px 0 0; padding: 0 0 0 20px; }
+  .ramal .parada { padding: 4px 0 4px 30px; }
+  .ramal .parada::before { left: -11px; width: 14px; height: 14px; border-width: 4px; top: 11px; }
+  .ramal .parada::after {
+    content: ""; position: absolute; left: -32px; top: 17px; width: 24px; height: 3px;
+    background: var(--tenue);
+  }
+  .ramal .fila { grid-template-columns: minmax(0, 1fr) auto; padding: 6px 12px; }
+  .ramal .nombre { font-size: 16px; font-weight: 500; }
+  .ramal .total { font-size: 18px; }
+  .ramal .parada:not(.vacia) > .fila { background: rgba(247, 249, 250, .55); }
+
+  .vacia > .fila { background: transparent; }
+  .vacia > .fila .nombre, .vacia > .fila .total { color: var(--tenue); }
+  .extra h3 { margin: 30px 0 8px; }
+
+  .leyenda {
+    display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 28px 0 0;
+    padding: 14px 0 0; border-top: 1px solid var(--tenue);
+    color: var(--gris); font-size: 13px;
+  }
+  .leyenda span { display: inline-flex; align-items: center; gap: 8px; }
+  .leyenda i { width: 13px; height: 13px; border-radius: 50%; border: 4px solid var(--c); background: var(--papel); }
+
+  /* ── Panel lateral ────────────────────────────────────── */
+  .lateral h2 { padding: 14px 18px 10px; }
+  .bloque { padding: 14px 18px; border-top: 1px solid var(--niebla); }
+  .plan { list-style: none; margin: 0; padding: 0; }
+  .plan li {
+    display: grid; grid-template-columns: 2.8em minmax(0, 1fr); gap: 10px;
+    padding: 5px 0; border-bottom: 1px solid var(--niebla);
+  }
+  .plan li:last-child { border-bottom: 0; }
+  .plan .n { text-align: right; font: 600 20px/1.2 var(--cartel); color: var(--verde); font-variant-numeric: tabular-nums; }
+  .plan .que small { display: block; color: var(--gris); font-size: 13px; }
+  .plan .nada { color: var(--gris); grid-column: 1 / -1; }
+
+  .lateral .boton { width: 100%; }
+  .fila-botones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .programar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  .programar input {
+    padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--tenue); background: #fff;
+    font: 600 15px/1 var(--cartel);
+  }
+  .etiqueta { display: block; margin-bottom: 7px; color: var(--gris); font-size: 13px; }
+  .estado-corrida { margin: 10px 0 0; font-size: 13px; color: var(--gris); }
+  .estado-corrida:empty { display: none; }
+  .estado-corrida button { color: var(--verde); text-decoration: underline; font-size: 13px; }
+
+  .avance[hidden] { display: none; }
+  .avance .titulo {
+    display: flex; justify-content: space-between; gap: 10px;
+    font: 600 18px/1.2 var(--cartel);
+  }
+  .barra { height: 7px; margin: 8px 0 6px; border-radius: 4px; background: var(--niebla); overflow: hidden; }
+  .barra i { display: block; height: 100%; width: 0; background: var(--verde); transition: width .4s; }
+  .avance .detalle { margin: 0; font-size: 13px; color: var(--gris); overflow-wrap: anywhere; }
+  .avance .cupo { margin: 6px 0 0; font-size: 13px; color: var(--koralle); }
+  .avance .cupo:empty { display: none; }
+
+
+  /* ── Pestañas ─────────────────────────────────────────── */
+  .pestanas { display: flex; gap: 8px; margin: 18px 0 0; }
+  .pestanas button {
+    padding: 8px 18px; border-radius: 999px 999px 0 0;
+    border: 2px solid transparent; border-bottom: 0;
+    font: 600 17px/1 var(--cartel); color: var(--gris);
+  }
+  .pestanas button[aria-selected="true"] {
+    background: var(--papel); border-color: var(--tenue); color: var(--tinta);
+  }
+  [hidden] { display: none !important; }
+
+  /* ── Vista de uso ─────────────────────────────────────── */
+  .grafico { background: var(--papel); border-radius: 12px; padding: 16px 18px; }
+  .grafico h2 { margin-bottom: 4px; }
+  .grafico .pie { margin: 4px 0 0; color: var(--gris); font-size: 13px; }
+  .grafico svg { width: 100%; height: auto; display: block; margin-top: 8px; }
+  .tipos { display: flex; gap: 6px; }
+  .tipos button {
+    padding: 5px 12px; border-radius: 999px; border: 2px solid var(--tenue);
+    color: var(--gris); font: 600 14px/1 var(--cartel);
+  }
+  .tipos button[aria-pressed="true"] { border-color: var(--verde); background: var(--verde); color: var(--papel); }
+  .cabecera-grafico { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+
+  .series { list-style: none; margin: 0; padding: 0; }
+  .series li { border-bottom: 1px solid var(--niebla); }
+  .series li:last-child { border-bottom: 0; }
+  .series label {
+    display: grid; grid-template-columns: auto 10px minmax(0, 1fr) auto;
+    align-items: center; gap: 9px; padding: 6px 0; cursor: pointer;
+  }
+  .series i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+  .series .cifra { color: var(--gris); font: 600 15px/1 var(--cartel); font-variant-numeric: tabular-nums; }
+  .series .nada { color: var(--gris); padding: 6px 0; }
+
+  .tabla { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+  .tabla th, .tabla td { text-align: left; padding: 5px 8px 5px 0; border-bottom: 1px solid var(--niebla); }
+  .tabla th { color: var(--gris); font: 600 14px/1 var(--cartel); }
+  .tabla td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .selector { width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--tenue); background: #fff; }
+
+  :focus-visible { outline: 3px solid var(--verde); outline-offset: 3px; }
+
+  @media (max-width: 1040px) {
+    .columnas { grid-template-columns: minmax(0, 1fr); }
+    .lateral { position: static; }
+  }
+  @media (max-width: 640px) {
+    .marco { padding: 20px 16px 40px; }
+    .parada > .fila { grid-template-columns: minmax(0, 1fr) auto; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .barra i { transition: none; }
+    .boton[aria-busy="true"] svg { animation: none; }
+    .nombre .flecha { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="marco">
+
+  <header>
+    <div>
+      <h1>Agente de postulaciones</h1>
+      <p class="resumen" id="resumen">Leyendo la cola…</p>
+    </div>
+    <div class="refrescar">
+      <span class="hora" id="hora"></span>
+      <button class="boton oscuro" id="actualizar" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+          <path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/>
+        </svg>
+        Actualizar
+      </button>
+    </div>
+  </header>
+
+  <p class="aviso" id="aviso" role="alert"></p>
+
+  <div class="pestanas" role="tablist">
+    <button type="button" id="tab-acciones" role="tab" aria-selected="true" aria-controls="vista-acciones">Acciones</button>
+    <button type="button" id="tab-uso" role="tab" aria-selected="false" aria-controls="vista-uso">Uso de Claude</button>
+  </div>
+
+  <section id="vista-acciones" role="tabpanel" aria-labelledby="tab-acciones">
+  <div class="columnas">
+    <div>
+      <ol class="linea" id="linea"></ol>
+
+      <section class="extra" id="extra" hidden>
+        <h3>Estados que el panel no conoce</h3>
+        <ol class="linea" id="no-previstos"></ol>
+      </section>
+
+      <div class="leyenda">
+        <span><i style="--c: var(--verde)"></i>Lo puede trabajar el agente</span>
+        <span><i style="--c: var(--marron)"></i>Espera una acción tuya</span>
+        <span><i style="--c: var(--rojo)"></i>Falló o ya no sirve</span>
+        <span><i style="--c: var(--verde-claro)"></i>Terminado</span>
+      </div>
+    </div>
+
+    <aside class="lateral" aria-label="Corrida">
+      <h2>Esta corrida</h2>
+
+      <div class="bloque">
+        <ol class="plan" id="plan"></ol>
+      </div>
+
+      <div class="bloque">
+        <button class="boton" id="correr" type="button">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>
+          Correr selección
+        </button>
+        <div class="fila-botones">
+          <button class="boton claro" id="pausar" type="button" disabled>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h3v11h-3zM9.5 2.5h3v11h-3z" fill="currentColor"/></svg>
+            Pausar
+          </button>
+          <button class="boton claro" id="detener" type="button" disabled>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" fill="currentColor"/></svg>
+            Detener
+          </button>
+        </div>
+      </div>
+
+      <div class="bloque">
+        <span class="etiqueta">Correr más tarde, sin los pasos que te necesitan</span>
+        <div class="programar">
+          <input type="time" id="hora-programa" value="14:00" aria-label="Hora de la corrida programada">
+          <button class="boton claro" id="programar" type="button">Programar</button>
+        </div>
+        <p class="estado-corrida" id="estado-corrida" aria-live="polite"></p>
+      </div>
+
+      <div class="bloque avance" id="avance" hidden>
+        <div class="titulo"><span id="avance-paso"></span><span id="avance-cuenta"></span></div>
+        <div class="barra"><i id="avance-barra"></i></div>
+        <p class="detalle" id="avance-detalle"></p>
+        <p class="cupo" id="avance-cupo"></p>
+      </div>
+    </aside>
+  </div>
+  </section>
+
+  <section id="vista-uso" role="tabpanel" aria-labelledby="tab-uso" hidden>
+    <div class="columnas">
+      <aside class="lateral" aria-label="Filtros del gráfico">
+        <h2>Qué se mide</h2>
+        <div class="bloque">
+          <span class="etiqueta">Medida</span>
+          <select class="selector" id="medida">
+            <option value="tokens">Tokens (entrada, caché escrita y salida)</option>
+            <option value="cache_leida">Caché leída</option>
+            <option value="llamadas">Llamadas a Claude</option>
+            <option value="turnos">Turnos</option>
+            <option value="costo_usd">Costo de lista en USD</option>
+            <option value="segundos">Minutos de trabajo</option>
+          </select>
+        </div>
+        <div class="bloque">
+          <span class="etiqueta">Período</span>
+          <select class="selector" id="periodo">
+            <option value="7">Últimos 7 días</option>
+            <option value="30" selected>Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+          </select>
+        </div>
+        <div class="bloque">
+          <span class="etiqueta">Series</span>
+          <ul class="series" id="series"></ul>
+        </div>
+      </aside>
+
+      <div>
+        <div class="grafico">
+          <div class="cabecera-grafico">
+            <div>
+              <h2 id="grafico-titulo">Total por día</h2>
+              <p class="pie" id="grafico-pie"></p>
+            </div>
+            <div class="tipos" id="tipos">
+              <button type="button" data-tipo="lineas" aria-pressed="true">Líneas</button>
+              <button type="button" data-tipo="barras" aria-pressed="false">Barras</button>
+              <button type="button" data-tipo="torta" aria-pressed="false">Torta</button>
+            </div>
+          </div>
+          <div id="lienzo"></div>
+        </div>
+
+        <div class="grafico" style="margin-top: 16px;">
+          <h2>Últimas llamadas</h2>
+          <table class="tabla" id="tabla-uso"></table>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+// Etapas en el orden del proceso. "hijas" son los estados que cuelgan de
+// cada una. "tipo" decide el color: agente, espera, falla o listo.
+// "sinCuenta" es para los pasos que no tienen carpetas que contar.
+const ETAPAS = [
+  { id: "BUSCAR OFERTAS", nombre: "Buscar ofertas nuevas", tipo: "agente", mando: true, sinCuenta: true, hijas: [] },
+  { id: "VERIFICAR VIGENCIA", nombre: "Verificar vigencia", tipo: "agente", mando: true, sinCuenta: true, hijas: [] },
+  { id: "FILTRAR MECANICO", nombre: "Filtrar por título y duplicados", tipo: "agente", mando: true, sinCuenta: true, hijas: [] },
+  { id: "POR FILTRAR", nombre: "Ofertas por filtrar", tipo: "agente", mando: true, hijas: [] },
+  { id: "SIN DOCUMENTOS", nombre: "Generar Lebenslauf", tipo: "agente", mando: true, hijas: [
+      { id: "FALTA CV", nombre: "Falta CV", tipo: "agente" },
+      { id: "CV FALLIDO", nombre: "Falla en CV", tipo: "falla" } ] },
+  { id: "PENDIENTE CAPTCHA", nombre: "Pendiente Captcha", tipo: "espera", mando: true, hijas: [
+      { id: "FALTA GEHALT", nombre: "Falta Gehalt", tipo: "espera" } ] },
+  { id: "LISTA PARA ANSCHREIBEN", nombre: "Generar Anschreiben", tipo: "agente", mando: true, hijas: [
+      { id: "ANSCHREIBEN FALLIDO", nombre: "Anschreiben fallido", tipo: "falla" } ] },
+  { id: "ENVIAR POR CORREO", nombre: "Generar borrador de mail", tipo: "agente", mando: true, hijas: [
+      { id: "CORREO LISTO", nombre: "Correo redactado, falta el borrador", tipo: "agente" } ] },
+  { id: "POSTULAR POR PORTAL", nombre: "Abrir portales", tipo: "espera", mando: true, hijas: [] },
+  { id: "SIN VÍA", nombre: "Sin direcciones, revisar a mano", tipo: "espera", mando: true, hijas: [] },
+  { id: "BORRADOR SIN ANHANG", nombre: "Adjuntar documentos al mail", tipo: "agente", mando: true, hijas: [
+      { id: "BORRADOR LISTO", nombre: "Mail listo para ser enviado", tipo: "espera" } ] },
+  { id: "ENVIADA · REVISAR", nombre: "Hacer seguimiento", tipo: "agente", mando: true, hijas: [
+      { id: "ENVIADA", nombre: "Envío realizado", tipo: "listo" } ] },
+  { id: "ENVIADA · NACHGEFASST", nombre: "Seguimiento hecho", tipo: "listo", mando: true, hijas: [
+      { id: "CADUCADA", nombre: "Oferta caducada", tipo: "falla" } ] },
+  { id: "SIN ANUNCIO", nombre: "Anuncio vacío, revisar a mano", tipo: "falla", mando: true, hijas: [] },
+];
+
+// Cómo se nombra cada paso en el panel lateral.
+const UNIDAD = {
+  "POR FILTRAR": "ofertas por puntuar", "SIN DOCUMENTOS": "Lebenslauf", "PENDIENTE CAPTCHA": "captcha",
+  "LISTA PARA ANSCHREIBEN": "Anschreiben", "ENVIAR POR CORREO": "borradores de mail",
+  "POSTULAR POR PORTAL": "portales", "SIN VÍA": "anuncios", "BORRADOR SIN ANHANG": "mails con adjuntos",
+  "ENVIADA · REVISAR": "seguimientos", "SIN ANUNCIO": "carpetas",
+};
+
+const COLOR = { agente: "var(--verde)", espera: "var(--marron)",
+                falla: "var(--rojo)", listo: "var(--verde-claro)" };
+const ICONO_PLAY = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>';
+const ICONO_PAUSA = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h3v11h-3zM9.5 2.5h3v11h-3z" fill="currentColor"/></svg>';
+
+const conocidos = new Set(ETAPAS.flatMap(e => [e.id, ...e.hijas.map(h => h.id)]));
+let datos = { estados: {}, por_filtrar: 0, pasos: {}, ejecutables: [], interactivos: [] };
+let pasos = {};          // selección en pantalla: { paso: {activo, cantidad} }
+let sondeo = null;
+
+const $ = id => document.getElementById(id);
+const nombreDe = id => (ETAPAS.find(e => e.id === id) || {}).nombre || id;
+
+async function api(ruta, cuerpo) {
+  try {
+    const r = await fetch(ruta, cuerpo === undefined ? {} : {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo) });
+    return await r.json();
+  } catch {
+    return { ok: false, mensaje: "El panel no responde. Vuelve a correr python panel.py." };
+  }
+}
+
+let guardarPendiente = null;
+function guardarPasos() {
+  clearTimeout(guardarPendiente);
+  guardarPendiente = setTimeout(() => api("/api/pasos", { pasos }), 400);
+  pintarPlan();
+}
+
+function totalDe(id) {
+  return id === "POR FILTRAR" ? datos.por_filtrar : (datos.estados[id] || []).length;
+}
+
+function crearParada(etapa, carpetas, total) {
+  const li = document.createElement("li");
+  li.className = "parada" + (total === 0 && !etapa.sinCuenta ? " vacia" : "");
+  li.style.setProperty("--color", COLOR[etapa.tipo]);
+
+  const fila = document.createElement("div");
+  fila.className = "fila";
+
+  const nombre = document.createElement("button");
+  nombre.type = "button"; nombre.className = "nombre";
+  nombre.innerHTML = `<span>${etapa.nombre || etapa.id}</span>` +
+                     (carpetas.length ? '<span class="flecha" aria-hidden="true">▶</span>' : "");
+  nombre.disabled = carpetas.length === 0;
+  nombre.setAttribute("aria-expanded", "false");
+  fila.append(nombre);
+
+  if (etapa.mando) {
+    const ejecutable = datos.ejecutables.includes(etapa.id);
+    const p = pasos[etapa.id] || (pasos[etapa.id] = { activo: false, cantidad: total });
+
+    if (!etapa.sinCuenta) {
+      const cant = document.createElement("label");
+      cant.className = "cantidad";
+      cant.innerHTML = `<input type="number" min="0" value="${p.cantidad}"
+                         aria-label="Cuántas procesar en ${etapa.nombre}">
+                        <span>/</span><span class="total">${total}</span>`;
+      const entrada = cant.querySelector("input");
+      entrada.disabled = !ejecutable;
+      entrada.addEventListener("input", () => {
+        p.cantidad = Math.max(0, Number(entrada.value) || 0); guardarPasos(); });
+      fila.append(cant);
+    }
+
+    const incluir = document.createElement("button");
+    incluir.type = "button"; incluir.className = "incluir";
+    const pintarIncluir = () => {
+      incluir.setAttribute("aria-pressed", String(p.activo));
+      incluir.innerHTML = (p.activo ? ICONO_PLAY : ICONO_PAUSA) +
+                          (p.activo ? "En la corrida" : "Fuera");
+      incluir.setAttribute("aria-label",
+        `${p.activo ? "Sacar de" : "Incluir en"} la corrida: ${etapa.nombre}`);
+    };
+    pintarIncluir();
+    incluir.disabled = !ejecutable;
+    incluir.addEventListener("click", () => { p.activo = !p.activo; pintarIncluir(); guardarPasos(); });
+
+    const solo = document.createElement("button");
+    solo.type = "button"; solo.className = "solo"; solo.textContent = "Solo este";
+    solo.setAttribute("aria-label", `Correr ahora solo: ${etapa.nombre}`);
+    solo.disabled = !ejecutable || (total === 0 && !etapa.sinCuenta);
+    solo.addEventListener("click", async () => {
+      const r = await api("/api/correr", { paso: etapa.id, cantidad: p.cantidad });
+      avisar(r.mensaje); if (r.ok) seguirCorrida();
+    });
+    fila.append(incluir, solo);
+
+    if (!ejecutable) {
+      const nota = document.createElement("p"); nota.className = "nota";
+      nota.textContent = "Todavía no hay un programa para este paso.";
+      fila.append(nota);
+    } else if (datos.interactivos.includes(etapa.id)) {
+      const nota = document.createElement("p"); nota.className = "nota";
+      nota.textContent = "Necesita que estés frente al PC: no corre en las corridas programadas.";
+      fila.append(nota);
+    }
+  } else {
+    const t = document.createElement("span");
+    t.className = "total"; t.textContent = total;
+    fila.append(t);
+  }
+
+  if (carpetas.length) {
+    const lista = document.createElement("ul");
+    lista.className = "carpetas"; lista.hidden = true;
+    carpetas.forEach(c => { const i = document.createElement("li"); i.textContent = c; lista.append(i); });
+    fila.append(lista);
+    nombre.addEventListener("click", () => {
+      lista.hidden = !lista.hidden;
+      nombre.setAttribute("aria-expanded", String(!lista.hidden));
+    });
+  }
+  li.append(fila);
+
+  if (etapa.hijas && etapa.hijas.length) {
+    const ramal = document.createElement("ol");
+    ramal.className = "ramal";
+    etapa.hijas.forEach(h => {
+      const cs = datos.estados[h.id] || [];
+      ramal.append(crearParada(h, cs, cs.length));
+    });
+    li.append(ramal);
+  }
+  return li;
+}
+
+// El plan, en el orden en que se va a ejecutar: una línea por paso.
+function pintarPlan() {
+  const lista = $("plan");
+  lista.replaceChildren();
+  let hay = false;
+  ETAPAS.forEach(e => {
+    const p = pasos[e.id];
+    if (!p || !p.activo || !datos.ejecutables.includes(e.id)) return;
+    const n = e.sinCuenta ? "—" : Math.min(p.cantidad, totalDe(e.id));
+    if (!e.sinCuenta && n === 0) return;
+    hay = true;
+    const nota = datos.interactivos.includes(e.id) ? "<small>solo contigo presente</small>" : "";
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="n">${n}</span><span class="que">` +
+                   `${e.sinCuenta ? e.nombre : (UNIDAD[e.id] || e.id)}${nota}</span>`;
+    lista.append(li);
+  });
+  if (!hay) {
+    const li = document.createElement("li");
+    li.innerHTML = '<span class="nada">Nada seleccionado todavía.</span>';
+    lista.append(li);
+  }
+}
+
+function pintar() {
+  const linea = $("linea");
+  linea.replaceChildren();
+  ETAPAS.forEach(e => {
+    const carpetas = (e.sinCuenta || e.id === "POR FILTRAR") ? [] : (datos.estados[e.id] || []);
+    linea.append(crearParada(e, carpetas, totalDe(e.id)));
+  });
+
+  const otros = Object.keys(datos.estados).filter(k => !conocidos.has(k));
+  const lista = $("no-previstos");
+  lista.replaceChildren();
+  otros.forEach(k => lista.append(
+    crearParada({ id: k, tipo: "espera" }, datos.estados[k], datos.estados[k].length)));
+  $("extra").hidden = otros.length === 0;
+
+  const carpetasTotal = Object.values(datos.estados).reduce((s, v) => s + v.length, 0);
+  $("resumen").innerHTML =
+    `<b>${carpetasTotal}</b> carpetas en salidas y <b>${datos.por_filtrar}</b> ofertas por filtrar`;
+  $("hora").textContent = datos.actualizado ? `Actualizado a las ${datos.actualizado}` : "";
+  $("aviso").textContent = datos.error ? `cola.py dio un error: ${datos.error}` : "";
+  pintarPlan();
+  pintarProgramada();
+  pintarAvance(datos.progreso);
+}
+
+function pintarProgramada() {
+  const p = datos.programada;
+  const el = $("estado-corrida");
+  if (!p) { if (el.dataset.tipo === "programada") el.textContent = ""; return; }
+  const cuando = new Date(p.cuando);
+  const dia = new Date().toDateString() === cuando.toDateString() ? "hoy" : "mañana";
+  el.dataset.tipo = "programada";
+  el.innerHTML = `Programada para ${dia} a las ${cuando.toTimeString().slice(0, 5)}. ` +
+                 `<button type="button" id="cancelar">Cancelar</button>`;
+  $("cancelar").addEventListener("click", async () => {
+    const r = await api("/api/cancelar", {}); datos.programada = null; avisar(r.mensaje);
+  });
+}
+
+function avisar(texto) {
+  const el = $("estado-corrida");
+  el.dataset.tipo = "aviso"; el.textContent = texto || "";
+}
+
+function pintarAvance(p) {
+  const corriendo = !!(p && p.corriendo);
+  $("correr").disabled = corriendo;
+  $("pausar").disabled = !corriendo;
+  $("detener").disabled = !corriendo;
+  const caja = $("avance");
+  if (!p) { caja.hidden = true; return; }
+  caja.hidden = false;
+  if (corriendo) {
+    $("avance-paso").textContent = p.paso ? nombreDe(p.paso) : "Preparando";
+    $("avance-cuenta").textContent = p.total ? `${p.hecho} de ${p.total}` : "";
+    $("avance-barra").style.width = p.total ? `${100 * p.hecho / p.total}%` : "0%";
+    $("avance-detalle").textContent = p.detalle || "";
+  } else {
+    $("avance-paso").textContent = `Última corrida ${p.inicio}–${p.fin}`;
+    $("avance-cuenta").textContent = "";
+    $("avance-barra").style.width = "100%";
+    $("avance-detalle").textContent = p.detalle || "";
+  }
+  $("avance-cupo").textContent = p.sin_cupo ? `Sin cupo de Claude. Se renueva: ${p.sin_cupo}` : "";
+}
+
+function seguirCorrida() {
+  clearInterval(sondeo);
+  sondeo = setInterval(async () => {
+    const r = await api("/api/progreso");
+    pintarAvance(r.progreso);
+    if (!r.progreso || !r.progreso.corriendo) { clearInterval(sondeo); actualizar(); }
+  }, 3000);
+}
+
+async function actualizar() {
+  const btn = $("actualizar");
+  btn.setAttribute("aria-busy", "true"); btn.disabled = true;
+  const r = await api("/api/estado");
+  if (r.estados) { datos = r; pasos = JSON.parse(JSON.stringify(r.pasos || {})); }
+  else datos = { ...datos, error: r.mensaje };
+  pintar();
+  btn.removeAttribute("aria-busy"); btn.disabled = false;
+  if (datos.progreso && datos.progreso.corriendo) seguirCorrida();
+}
+
+$("actualizar").addEventListener("click", actualizar);
+$("correr").addEventListener("click", async () => {
+  const r = await api("/api/correr", { pasos }); avisar(r.mensaje); if (r.ok) seguirCorrida();
+});
+$("pausar").addEventListener("click", async () => {
+  const r = await api("/api/pausar", {}); avisar(r.mensaje);
+});
+$("detener").addEventListener("click", async () => {
+  const r = await api("/api/detener", {}); avisar(r.mensaje); actualizar();
+});
+$("programar").addEventListener("click", async () => {
+  const r = await api("/api/programar", { pasos, hora: $("hora-programa").value });
+  avisar(r.mensaje);
+  if (r.ok) { const e = await api("/api/estado"); datos.programada = e.programada; pintarProgramada(); }
+});
+actualizar();
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  Pestaña de uso: lee logs/uso.jsonl y dibuja los gráficos.
+//  Todo en SVG, sin librerías: el panel funciona sin internet.
+// ══════════════════════════════════════════════════════════════
+const COLORES_SERIE = ["#2E5E8E", "#3F7A56", "#B7791F", "#A6423A", "#6B4E8E", "#1C2833", "#5E6E7C"];
+const MEDIDAS = {
+  tokens:      { nombre: "Tokens", fn: f => f.entrada + f.cache_escrita + f.salida },
+  cache_leida: { nombre: "Caché leída", fn: f => f.cache_leida },
+  llamadas:    { nombre: "Llamadas a Claude", fn: () => 1 },
+  turnos:      { nombre: "Turnos", fn: f => f.turnos },
+  costo_usd:   { nombre: "Costo de lista en USD", fn: f => f.costo_usd, decimales: 2 },
+  segundos:    { nombre: "Minutos de trabajo", fn: f => f.segundos / 60, decimales: 1 },
+};
+
+let usoFilas = [];
+let usoTipo = "lineas";
+const seriesApagadas = new Set();
+
+const fmt = (n, dec = 0) => n.toLocaleString("es-CL", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const dia = cuando => cuando.slice(0, 10);
+
+function medidaActual() { return MEDIDAS[$("medida").value] || MEDIDAS.tokens; }
+function filasDelPeriodo() {
+  const dias = Number($("periodo").value);
+  const corte = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
+  return usoFilas.filter(f => dia(f.cuando) >= corte);
+}
+
+// { pasos: [...], dias: [...], valores: {paso: {dia: n}}, totales: {paso: n} }
+function agrupar(filas) {
+  const medida = medidaActual();
+  const valores = {}, totales = {}, dias = new Set();
+  filas.forEach(f => {
+    const paso = nombreDe(f.paso || "otros");
+    dias.add(dia(f.cuando));
+    valores[paso] = valores[paso] || {};
+    valores[paso][dia(f.cuando)] = (valores[paso][dia(f.cuando)] || 0) + medida.fn(f);
+    totales[paso] = (totales[paso] || 0) + medida.fn(f);
+  });
+  const pasos = Object.keys(totales).sort((a, b) => totales[b] - totales[a]);
+  return { pasos, dias: [...dias].sort(), valores, totales };
+}
+
+function pintarSeries(datosUso) {
+  const lista = $("series");
+  lista.replaceChildren();
+  if (!datosUso.pasos.length) {
+    lista.innerHTML = '<li class="nada">Todavía no hay llamadas registradas.</li>';
+    return;
+  }
+  const medida = medidaActual();
+  datosUso.pasos.forEach((paso, i) => {
+    const li = document.createElement("li");
+    const marcado = seriesApagadas.has(paso) ? "" : "checked";
+    li.innerHTML = `<label><input type="checkbox" ${marcado} data-paso="${paso}">` +
+      `<i style="--c: ${COLORES_SERIE[i % COLORES_SERIE.length]}"></i>` +
+      `<span>${paso}</span>` +
+      `<span class="cifra">${fmt(datosUso.totales[paso], medida.decimales || 0)}</span></label>`;
+    li.querySelector("input").addEventListener("change", ev => {
+      if (ev.target.checked) seriesApagadas.delete(paso); else seriesApagadas.add(paso);
+      pintarUso();
+    });
+    lista.append(li);
+  });
+}
+
+function svgBase(alto = 320) {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("viewBox", `0 0 720 ${alto}`);
+  s.setAttribute("role", "img");
+  return s;
+}
+function nodo(padre, tipo, atributos, texto) {
+  const e = document.createElementNS("http://www.w3.org/2000/svg", tipo);
+  Object.entries(atributos).forEach(([k, v]) => e.setAttribute(k, v));
+  if (texto !== undefined) e.textContent = texto;
+  padre.append(e);
+  return e;
+}
+
+function dibujarEjes(svg, dias, maximo, medida) {
+  const x0 = 62, x1 = 706, y0 = 20, y1 = 268;
+  for (let i = 0; i <= 4; i++) {
+    const y = y1 - (y1 - y0) * i / 4;
+    nodo(svg, "line", { x1: x0, y1: y, x2: x1, y2: y, stroke: "#E6EBEF", "stroke-width": 1 });
+    nodo(svg, "text", { x: x0 - 8, y: y + 4, "text-anchor": "end", fill: "#5E6E7C", "font-size": 11 },
+         fmt(maximo * i / 4, medida.decimales || 0));
+  }
+  const paso = Math.ceil(dias.length / 8);
+  dias.forEach((d, i) => {
+    if (i % paso) return;
+    const x = x0 + (x1 - x0) * (dias.length === 1 ? 0.5 : i / (dias.length - 1));
+    nodo(svg, "text", { x, y: y1 + 18, "text-anchor": "middle", fill: "#5E6E7C", "font-size": 11 },
+         d.slice(8) + "/" + d.slice(5, 7));
+  });
+  return { x0, x1, y0, y1 };
+}
+
+function pintarUso() {
+  const filas = filasDelPeriodo();
+  const datosUso = agrupar(filas);
+  const medida = medidaActual();
+  pintarSeries(datosUso);
+
+  const visibles = datosUso.pasos.filter(p => !seriesApagadas.has(p));
+  const lienzo = $("lienzo");
+  lienzo.replaceChildren();
+  $("grafico-titulo").textContent = `${medida.nombre} por día`;
+
+  if (!filas.length) {
+    $("grafico-pie").textContent = "Sin datos en este período.";
+    return;
+  }
+  const total = filas.reduce((s, f) => s + medida.fn(f), 0);
+  $("grafico-pie").textContent =
+    `${fmt(total, medida.decimales || 0)} en total · ${filas.length} llamadas · ` +
+    `${datosUso.dias.length} ${datosUso.dias.length === 1 ? "día" : "días"} con actividad`;
+
+  const svg = svgBase(usoTipo === "torta" ? 300 : 300);
+  const color = p => COLORES_SERIE[datosUso.pasos.indexOf(p) % COLORES_SERIE.length];
+
+  if (usoTipo === "torta") {
+    const suma = visibles.reduce((s, p) => s + datosUso.totales[p], 0) || 1;
+    let angulo = -Math.PI / 2;
+    const cx = 200, cy = 150, r = 110;
+    visibles.forEach(p => {
+      const parte = datosUso.totales[p] / suma;
+      const fin = angulo + parte * Math.PI * 2;
+      const largo = parte > 0.5 ? 1 : 0;
+      const d = `M ${cx} ${cy} L ${cx + r * Math.cos(angulo)} ${cy + r * Math.sin(angulo)} ` +
+                `A ${r} ${r} 0 ${largo} 1 ${cx + r * Math.cos(fin)} ${cy + r * Math.sin(fin)} Z`;
+      nodo(svg, "path", { d, fill: color(p), stroke: "#F7F9FA", "stroke-width": 2 });
+      angulo = fin;
+    });
+    visibles.forEach((p, i) => {
+      const y = 40 + i * 22;
+      nodo(svg, "circle", { cx: 380, cy: y - 4, r: 5, fill: color(p) });
+      nodo(svg, "text", { x: 396, y, fill: "#1C2833", "font-size": 13 },
+           `${p} · ${Math.round(100 * datosUso.totales[p] / suma)} %`);
+    });
+    lienzo.append(svg);
+    return;
+  }
+
+  const maximo = Math.max(1, ...datosUso.dias.map(d =>
+    Math.max(...visibles.map(p => (datosUso.valores[p] || {})[d] || 0), 0)));
+  const { x0, x1, y0, y1 } = dibujarEjes(svg, datosUso.dias, maximo, medida);
+  const px = i => x0 + (x1 - x0) * (datosUso.dias.length === 1 ? 0.5 : i / (datosUso.dias.length - 1));
+  const py = v => y1 - (y1 - y0) * (v / maximo);
+
+  if (usoTipo === "barras") {
+    const ancho = Math.max(4, (x1 - x0) / (datosUso.dias.length * Math.max(visibles.length, 1) + 2));
+    datosUso.dias.forEach((d, i) => {
+      visibles.forEach((p, j) => {
+        const v = (datosUso.valores[p] || {})[d] || 0;
+        if (!v) return;
+        nodo(svg, "rect", { x: px(i) - (visibles.length * ancho) / 2 + j * ancho,
+                            y: py(v), width: ancho - 1, height: y1 - py(v), fill: color(p) });
+      });
+    });
+  } else {
+    visibles.forEach(p => {
+      const puntos = datosUso.dias.map((d, i) => `${px(i)},${py((datosUso.valores[p] || {})[d] || 0)}`);
+      nodo(svg, "polyline", { points: puntos.join(" "), fill: "none",
+                              stroke: color(p), "stroke-width": 2.5 });
+      datosUso.dias.forEach((d, i) => {
+        const v = (datosUso.valores[p] || {})[d] || 0;
+        if (v) nodo(svg, "circle", { cx: px(i), cy: py(v), r: 3, fill: color(p) });
+      });
+    });
+  }
+  lienzo.append(svg);
+}
+
+function pintarTabla() {
+  const filas = filasDelPeriodo().slice(-15).reverse();
+  const t = $("tabla-uso");
+  t.innerHTML = "<tr><th>Cuándo</th><th>Paso</th><th>Carpeta</th>" +
+                "<th class='num'>Tokens</th><th class='num'>Caché leída</th>" +
+                "<th class='num'>Turnos</th><th class='num'>Min</th></tr>";
+  if (!filas.length) {
+    t.innerHTML += "<tr><td colspan='7'>Todavía no hay llamadas registradas.</td></tr>";
+    return;
+  }
+  filas.forEach(f => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${f.cuando.slice(5, 16).replace("T", " ")}</td>` +
+      `<td>${nombreDe(f.paso || "")}</td><td>${(f.detalle || "").slice(0, 34)}</td>` +
+      `<td class="num">${fmt(f.entrada + f.cache_escrita + f.salida)}</td>` +
+      `<td class="num">${fmt(f.cache_leida)}</td>` +
+      `<td class="num">${f.turnos}</td><td class="num">${fmt(f.segundos / 60, 1)}</td>`;
+    t.append(tr);
+  });
+}
+
+async function cargarUso() {
+  const r = await api("/api/uso");
+  usoFilas = r.filas || [];
+  pintarUso(); pintarTabla();
+}
+
+$("medida").addEventListener("change", () => { pintarUso(); });
+$("periodo").addEventListener("change", () => { pintarUso(); pintarTabla(); });
+$("tipos").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-tipo]");
+  if (!b) return;
+  usoTipo = b.dataset.tipo;
+  [...$("tipos").children].forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  pintarUso();
+});
+
+function verPestana(cual) {
+  const uso = cual === "uso";
+  $("vista-uso").hidden = !uso;
+  $("vista-acciones").hidden = uso;
+  $("tab-uso").setAttribute("aria-selected", String(uso));
+  $("tab-acciones").setAttribute("aria-selected", String(!uso));
+  if (uso) cargarUso();
+}
+$("tab-uso").addEventListener("click", () => verPestana("uso"));
+$("tab-acciones").addEventListener("click", () => verPestana("acciones"));
+</script>
+</body>
+</html>

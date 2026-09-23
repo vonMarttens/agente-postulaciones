@@ -1,0 +1,37 @@
+{
+  "finanzas": [
+    "Kreditanalyst",
+	"Marktfolge",
+    "Financial Analyst",
+    "Finanzanalyst",
+    "Risikoanalyse",
+    "Kreditsachbearbeiter",
+    "Business Analyst",
+    "Credit Analyst",
+    "Risk Analyst",
+	"Risikomanager",
+	"Finanzcontroller",
+	"Business Controller",
+	"FP&A",
+	"Controller",
+	"Finanzsachbearbeiter",
+	"Controlling"
+  ],
+  "marketing_ecommerce": [
+    "Online Marketing Manager",
+    "SEO Manager",
+    "Performance Marketing",
+    "Web Analytics",
+    "Digital Analyst",
+    "E-Commerce Manager",
+    "Digital Marketing Manager"
+  ],
+  "transformacion_digital": [
+    "Digitalisierung Banking",
+	"Electronic Banking",
+	"Digital Transformation Banking",
+	"Consultant Digital Transformation",
+	"Digitalisierung Bank",
+    "Business Intelligence"
+  ]
+}
