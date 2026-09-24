@@ -35,8 +35,9 @@ from cola import CARPETA_SALIDAS, REGISTRO, campo, clasificar
 import perfil
 
 RAIZ = Path(__file__).parent
-CREDENCIALES = RAIZ / "credentials.json"
-TOKEN = RAIZ / "token.json"
+SECRETOS = Path.home() / ".agente-postulaciones"
+CREDENCIALES = SECRETOS / "credentials.json"
+TOKEN = SECRETOS / "token.json"
 ANLAGEN = perfil.ANLAGEN_ESTANDAR
 SCOPES = ["https://www.googleapis.com/auth/gmail.compose"]
 

@@ -40,7 +40,7 @@ _datos = json.loads(
 BUSQUEDAS = [t for grupo in _datos.values() for t in grupo]
 
 CIUDAD = perfil.CIUDAD
-RADIO_KM = 50          # cubre Essen, Duisburg, Neuss, Koeln, Wuppertal...
+RADIO_KM = 50          # radio de busqueda alrededor de CIUDAD
 DIAS = 4              # solo ofertas publicadas en los ultimos N dias
 SOLO_VOLLZEIT = True   # False si tambien quieres Teilzeit
 

@@ -56,7 +56,7 @@ PERMISOS = {
     "carta": "Skill,Read,Write,Edit,Glob,Grep,Bash(typst compile:*),Bash(python contar_paginas.py:*)",
     "correo": "Skill,Read,Write,Glob,Grep,Bash(python cola.py:*)",
     "nachfassen": "Skill,Read,Write,Edit,Glob,Grep,Bash(python cola.py:*),"
-                  + GMAIL_LECTURA + ",mcp__claude_ai_Gmail__create_draft",
+                  + "mcp__claude_ai_Gmail__create_draft",
 }
 
 # Orden de una corrida completa: lo mas cercano a terminar va primero.

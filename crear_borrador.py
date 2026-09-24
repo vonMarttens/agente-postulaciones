@@ -38,12 +38,13 @@ from datetime import date
 from email.message import EmailMessage
 from pathlib import Path
 
-from cola import CARPETA_SALIDAS, REGISTRO, clasificar
+from cola import CARPETA_SALIDAS, REGISTRO, campo, clasificar
 import perfil
 
 RAIZ = Path(__file__).parent
-CREDENCIALES = RAIZ / "credentials.json"
-TOKEN = RAIZ / "token.json"
+SECRETOS = Path.home() / ".agente-postulaciones"
+CREDENCIALES = SECRETOS / "credentials.json"
+TOKEN = SECRETOS / "token.json"
 CORREO = "correo.txt"
 ANEXOS = {
     "estandar": perfil.ANLAGEN_ESTANDAR,
@@ -111,6 +112,10 @@ def armar(carpeta):
     """Devuelve (mensaje, para, nombres_esperados) o lanza ValueError."""
     para, asunto, anexos, cuerpo = leer_correo(carpeta / CORREO)
 
+    anuncio = (carpeta / "stellenanzeige.txt").read_text(encoding="utf-8", errors="replace")
+    kontakt = campo(anuncio, "KONTAKT")
+    if para.strip().lower() != kontakt.strip().lower():
+        raise ValueError(f"PARA ({para}) no coincide con KONTAKT ({kontakt or 'vacío'})")
     carta = uno(carpeta, "Anschreiben_*.pdf")
     cv = uno(carpeta, "lebenslauf_*.pdf")
     if not carta or not cv:
