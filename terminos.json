@@ -15,7 +15,8 @@
 	"FP&A",
 	"Controller",
 	"Finanzsachbearbeiter",
-	"Controlling"
+	"Controlling",
+	"Inhouse Consultant"
   ],
   "marketing_ecommerce": [
     "Online Marketing Manager",
@@ -32,6 +33,12 @@
 	"Digital Transformation Banking",
 	"Consultant Digital Transformation",
 	"Digitalisierung Bank",
-    "Business Intelligence"
+    "Business Intelligence",
+	"Process Automation",
+	"AI Enablement",
+	"AI Consultant",
+	"KI-Manager",
+	"AI Manager",
+	"Prozessmanager"
   ]
 }

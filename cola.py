@@ -19,6 +19,7 @@ El estado sale de lo que hay en disco, sin archivo de control:
   - bewerbung_gesendet.txt con GESENDET AM: -
       sin ANHANG AM                            -> borrador sin adjuntos
       con ANHANG AM                            -> borrador listo
+  - con DESCARTADA AM                          -> borrador borrado sin enviar
   - con fecha                                  -> enviada
   - con NACHGEFASST AM                         -> ya se insistio una vez
 
@@ -50,6 +51,8 @@ REGISTRO = "bewerbung_gesendet.txt"
 FALLIDO_CV = "cv_fallido.txt"
 CORREO = "correo.txt"
 FALLIDO_CARTA = "anschreiben_fallido.txt"
+KONTAKT_ARCHIVO = "kontakt.txt"
+MARCADOR_CADUCADA = "caducada.txt"
 
 # Dias tras los cuales una postulacion enviada se marca para revisar.
 DIAS_SEGUIMIENTO = 14
@@ -65,6 +68,13 @@ def campo(texto, nombre):
         return ""
     valor = m.group(1).strip()
     return "" if valor == "-" else valor
+
+def fecha_envio(carpeta):
+    """La fecha GESENDET AM, o "" si la postulación no se envió."""
+    registro = carpeta / REGISTRO
+    if not registro.is_file():
+        return ""
+    return campo(registro.read_text(encoding="utf-8", errors="replace"), "GESENDET AM")
 
 def pide_gehalt(texto):
     """
@@ -106,6 +116,17 @@ def clasificar(carpeta):
 
     texto = anuncio.read_text(encoding="utf-8", errors="replace")
 
+    # ── Caducada antes de postular: no se sigue trabajando ───────
+    # La escriben verificar_vigencia.py o extraer_kontakt.py. Va antes
+    # que los documentos para no generar CV ni carta de una oferta muerta.
+    caducada = ""
+    marcador = carpeta / MARCADOR_CADUCADA
+    if marcador.is_file():
+        caducada = campo(marcador.read_text(encoding="utf-8", errors="replace"),
+                         "CADUCADA AM")
+        if not fecha_envio(carpeta):
+            return "CADUCADA", f"caducó antes de postular · {caducada}"
+
     # ── Documentos, antes que el captcha ─────────────────────────
     hay_cv = any(carpeta.glob("lebenslauf_*.pdf"))
     hay_carta = any(carpeta.glob("Anschreiben_*.pdf"))
@@ -122,7 +143,11 @@ def clasificar(carpeta):
         return "FALTA CV", "el .typ no compiló"
 
     # ── Captcha ──────────────────────────────────────────────────
-    if MARCA not in texto:
+    # kontakt.txt es el destinatario que acepta crear_borrador.py.
+    # Las carpetas que ya tienen borrador no lo necesitan.
+    tiene_kontakt = (carpeta / KONTAKT_ARCHIVO).is_file()
+    tiene_borrador = (carpeta / REGISTRO).is_file()
+    if MARCA not in texto or not (tiene_kontakt or tiene_borrador):
         return "PENDIENTE CAPTCHA", ""
 
     via = campo(texto, "BEWERBUNG VIA")
@@ -136,6 +161,11 @@ def clasificar(carpeta):
     registro = carpeta / REGISTRO
     if registro.is_file():
         reg = registro.read_text(encoding="utf-8", errors="replace")
+        descartada = campo(reg, "DESCARTADA AM")
+        if descartada:
+            motivo = "descartada sin postular" if campo(reg, "VIA").strip() == "Portal" \
+                else "borrador borrado sin enviar"
+            return "POSTULACION ELIMINADA", f"{motivo} {descartada}"
         fecha = campo(reg, "GESENDET AM")
 
         if not fecha:
@@ -153,6 +183,8 @@ def clasificar(carpeta):
             detalle += f" · {canal}"
         if d is not None:
             detalle += f" · hace {d}d"
+        if caducada:
+            detalle += f" · anuncio caducado {caducada}"
 
         # En Alemania se insiste una vez, no dos. Si ya hay
         # NACHGEFASST AM, la carpeta no vuelve a pedir accion.
@@ -215,6 +247,7 @@ ORDEN = [
     "SIN VÍA",
     "BORRADOR SIN ANHANG",
     "BORRADOR LISTO",
+    "POSTULACION ELIMINADA POR USUARIO",
     "ENVIADA · REVISAR",
     "ENVIADA",
     "ENVIADA · NACHGEFASST",
@@ -247,13 +280,15 @@ SIGUIENTE = {
     "CORREO LISTO":
         "python crear_borrador.py --aplicar",
     "POSTULAR POR PORTAL":
-        "postular a mano en la URL y escribir bewerbung_gesendet.txt",
+        "postular en el portal y marcarla en el panel (Enviada o Descartar)",
     "SIN VÍA":
         "abrir el anuncio y buscar cómo se postula",
     "BORRADOR SIN ANHANG":
         "python adjuntar_borradores.py --aplicar",
     "BORRADOR LISTO":
-        "revisar el borrador en Gmail y enviarlo · luego modo B",
+        "revisar el borrador en Gmail y enviarlo · luego python confirmar_envio.py --aplicar",
+    "POSTULACION ELIMINADA POR USUARIO":
+        "nada · para reactivarla, borrar bewerbung_gesendet.txt y crear el borrador de nuevo",
     "ENVIADA · REVISAR":
         "skill enviar-postulacion, modo D (Nachfassen)",
     "ENVIADA":
@@ -283,6 +318,8 @@ def main():
     grupos = {}
     for c in carpetas:
         estado, detalle = clasificar(c)
+        if (c / "ats_riesgo.txt").is_file():
+            detalle = "NO PASA ATS · " + detalle
         grupos.setdefault(estado, []).append((c, detalle))
 
     if solo_rutas:

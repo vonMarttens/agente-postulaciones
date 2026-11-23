@@ -23,6 +23,9 @@
     --texto: "Barlow", "Segoe UI", system-ui, sans-serif;
     --cartel: "Barlow Condensed", "Arial Narrow", "Segoe UI", sans-serif;
   }
+  html {
+  font-size: 85%; /* Cambia este porcentaje hasta encontrar el tamaño ideal (ej. 90%, 80%) */
+}
 
   * { box-sizing: border-box; }
   body {
@@ -133,6 +136,13 @@
     columns: 2 240px; column-gap: 22px; font-size: 13px; color: var(--gris);
   }
   .carpetas li { break-inside: avoid; padding: 2px 0; overflow-wrap: anywhere; }
+  .carpetas li.hecha { text-decoration: line-through; opacity: .6; }
+  .carpetas .acciones { margin-left: 8px; white-space: nowrap; }
+  .carpetas .acciones button {
+    padding: 0 4px; color: var(--verde); font-size: 13px;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  .carpetas .acciones button:disabled { opacity: .35; cursor: not-allowed; }
 
   .ramal { list-style: none; margin: 6px 0 0; padding: 0 0 0 20px; }
   .ramal .parada { padding: 4px 0 4px 30px; }
@@ -260,16 +270,7 @@
   <header>
     <div>
       <h1>Agente de postulaciones</h1>
-      <p class="resumen" id="resumen">Leyendo la cola…</p>
-    </div>
-    <div class="refrescar">
-      <span class="hora" id="hora"></span>
-      <button class="boton oscuro" id="actualizar" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
-          <path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/>
-        </svg>
-        Actualizar
-      </button>
+      <span class="resumen" id="resumen">Leyendo la cola…</span>
     </div>
   </header>
 
@@ -337,6 +338,17 @@
         <p class="detalle" id="avance-detalle"></p>
         <p class="cupo" id="avance-cupo"></p>
       </div>
+
+    <div class="refrescar">
+      <button class="boton oscuro" id="actualizar" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+          <path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/>
+        </svg>
+        Actualizar
+      </button>
+	  <span class="hora" id="hora"></span>
+    </div>
+
     </aside>
   </div>
   </section>
@@ -415,8 +427,9 @@ const ETAPAS = [
       { id: "CORREO LISTO", nombre: "Correo redactado, falta el borrador", tipo: "agente" } ] },
   { id: "POSTULAR POR PORTAL", nombre: "Abrir portales", tipo: "espera", mando: true, hijas: [] },
   { id: "SIN VÍA", nombre: "Sin direcciones, revisar a mano", tipo: "espera", mando: true, hijas: [] },
-  { id: "BORRADOR SIN ANHANG", nombre: "Adjuntar documentos al mail", tipo: "agente", mando: true, hijas: [
-      { id: "BORRADOR LISTO", nombre: "Mail listo para ser enviado", tipo: "espera" } ] },
+  { id: "BORRADOR SIN ANHANG", nombre: "Adjuntar documentos al mail", tipo: "agente", mando: true, hijas: [] },
+  { id: "BORRADOR LISTO", nombre: "Mail listo · confirmar envío", tipo: "agente", mando: true, hijas: [
+      { id: "POSTULACION ELIMINADA", nombre: "Borrador borrado, no enviado", tipo: "listo" } ] },
   { id: "ENVIADA · REVISAR", nombre: "Hacer seguimiento", tipo: "agente", mando: true, hijas: [
       { id: "ENVIADA", nombre: "Envío realizado", tipo: "listo" } ] },
   { id: "ENVIADA · NACHGEFASST", nombre: "Seguimiento hecho", tipo: "listo", mando: true, hijas: [
@@ -429,6 +442,7 @@ const UNIDAD = {
   "POR FILTRAR": "ofertas por puntuar", "SIN DOCUMENTOS": "Lebenslauf", "PENDIENTE CAPTCHA": "captcha",
   "LISTA PARA ANSCHREIBEN": "Anschreiben", "ENVIAR POR CORREO": "borradores de mail",
   "POSTULAR POR PORTAL": "portales", "SIN VÍA": "anuncios", "BORRADOR SIN ANHANG": "mails con adjuntos",
+  "BORRADOR LISTO": "envíos por confirmar",
   "ENVIADA · REVISAR": "seguimientos", "SIN ANUNCIO": "carpetas",
 };
 
@@ -465,6 +479,30 @@ function guardarPasos() {
 
 function totalDe(id) {
   return id === "POR FILTRAR" ? datos.por_filtrar : (datos.estados[id] || []).length;
+}
+
+// Botones de "Abrir portales": registran lo que hiciste en el portal.
+function accionesPortal(carpeta) {
+  const caja = document.createElement("span");
+  caja.className = "acciones";
+  const opciones = [
+    ["enviada", "Enviada", "¿Marcar como enviada?"],
+    ["descartada", "Descartar", "¿Descartar sin postular?"],
+  ];
+  opciones.forEach(([accion, texto, pregunta]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = texto;
+    b.addEventListener("click", async () => {
+      if (!confirm(`${pregunta}\n${carpeta}`)) return;
+      caja.querySelectorAll("button").forEach(x => x.disabled = true);
+      const r = await api("/api/portal", { carpeta, accion });
+      avisar(r.mensaje);
+      if (r.ok) caja.closest("li").classList.add("hecha");
+      else caja.querySelectorAll("button").forEach(x => x.disabled = false);
+    });
+    caja.append(b);
+  });
+  return caja;
 }
 
 function crearParada(etapa, carpetas, total) {
@@ -541,7 +579,12 @@ function crearParada(etapa, carpetas, total) {
   if (carpetas.length) {
     const lista = document.createElement("ul");
     lista.className = "carpetas"; lista.hidden = true;
-    carpetas.forEach(c => { const i = document.createElement("li"); i.textContent = c; lista.append(i); });
+    carpetas.forEach(c => {
+      const i = document.createElement("li");
+      i.textContent = c;
+      if (etapa.id === "POSTULAR POR PORTAL") i.append(accionesPortal(c));
+      lista.append(i);
+    });
     fila.append(lista);
     nombre.addEventListener("click", () => {
       lista.hidden = !lista.hidden;

@@ -1,6 +1,7 @@
 # ── Secretos ──────────────────────────────────────
 credentials.json
 token.json
+token*.json
 
 # ── Perfil personal ───────────────────────────────
 /.claude/skills/
@@ -17,6 +18,18 @@ perfil_arbeitsagentur/
 /*.jpg
 /*.png
 
+# ── Documentos personales ─────────────────────────
+ArbeitsAgentur/
+_respaldo/
+agencias/
+Lebenslauf_*.typ
+contexto_adiciones.md
+sin_respaldo.md
+cambios_ATS.md
+candidatos.txt
+sondeo.txt
+*.docx
+
 # ── Datos de trabajo ──────────────────────────────
 ofertas/
 salidas/
@@ -31,3 +44,6 @@ orquestador.txt
 # ── Python ────────────────────────────────────────
 __pycache__/
 *.pyc
+
+# ── Sistema ───────────────────────────────────────
+desktop.ini

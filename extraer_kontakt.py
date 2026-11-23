@@ -44,6 +44,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from verificar_vigencia import marcar_caducada
 
 try:
     from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
@@ -84,6 +85,9 @@ SELECTORES = {
 
 MARCA_INICIO = "# ── Datos verificados a mano ──"
 MARCA_FIN = "# ── Fin datos verificados ──"
+# El destinatario que acepta crear_borrador.py. El agente no puede
+# editarlo (deny en settings.json). Mismo nombre que en cola.py.
+KONTAKT_ARCHIVO = "kontakt.txt"
 
 # Para distinguir una linea de persona de una de empresa o de calle
 # dentro del bloque de direccion.
@@ -104,18 +108,24 @@ def leer_enlace(anuncio):
 
 
 def ya_procesado(anuncio):
-    texto = anuncio.read_text(encoding="utf-8", errors="replace")
-    return MARCA_INICIO in texto
+    return (anuncio.parent / KONTAKT_ARCHIVO).is_file()
 
 
-def escribir(anuncio, bloque):
-    """Antepone el bloque al archivo. True si se pudo."""
+def escribir(anuncio, bloque, email):
+    """
+    Antepone el bloque al anuncio, salvo que ya lo tenga, y escribe
+    kontakt.txt al final: su existencia marca la carpeta como procesada.
+    True si se pudo.
+    """
     try:
         original = anuncio.read_text(encoding="utf-8")
-        anuncio.write_text(bloque + original, encoding="utf-8")
+        if MARCA_INICIO not in original:
+            anuncio.write_text(bloque + original, encoding="utf-8")
+        (anuncio.parent / KONTAKT_ARCHIVO).write_text(
+            (email or "-") + "\n", encoding="utf-8")
         return True
     except Exception as e:
-        print(f"  ! No se pudo escribir en {anuncio}: {e}")
+        print(f"  ! No se pudo escribir en {anuncio.parent}: {e}")
         return False
 
 
@@ -313,13 +323,15 @@ def procesar(page, anuncio, enlace, aplicar):
         return "SIN CARGA", None
 
     if es_caducado(page):
-        if aplicar and not escribir(anuncio, bloque_caducado()):
-            return "ERROR", 5
+        if aplicar:
+            if not escribir(anuncio, bloque_caducado(), None):
+                return "ERROR", 5
+            marcar_caducada(anuncio.parent)
         return "CADUCADA", None
 
     url_ext = es_externo(page)
     if url_ext:
-        if aplicar and not escribir(anuncio, bloque_externo(url_ext)):
+        if aplicar and not escribir(anuncio, bloque_externo(url_ext), None):
             return "ERROR", 5
         return "EXTERNO", None
 
@@ -353,7 +365,7 @@ def procesar(page, anuncio, enlace, aplicar):
 
     bloque = bloque_datos(datos)
     print(bloque)
-    if aplicar and not escribir(anuncio, bloque):
+    if aplicar and not escribir(anuncio, bloque, datos["email"]):
         return "ERROR", 5
 
     return "OK", None
@@ -413,7 +425,7 @@ def main():
         pendientes.append((c, anuncio, enlace))
 
     if saltadas:
-        print(f"{saltadas} ya tenian el bloque, se saltan.")
+        print(f"{saltadas} ya tenian kontakt.txt, se saltan.")
 
     if not pendientes:
         print("Nada que procesar.\n")

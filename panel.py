@@ -34,6 +34,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import ejecutor
+from cola import CARPETA_SALIDAS, REGISTRO
 
 RAIZ = Path(__file__).parent
 PAGINA = RAIZ / "panel.html"
@@ -64,6 +65,34 @@ def leer_cola():
         error = r.stderr.decode("utf-8", errors="replace").strip() or \
             f"cola.py terminó con código {r.returncode}."
     return estados, error
+
+
+def registrar_portal(carpeta, accion):
+    """
+    Escribe bewerbung_gesendet.txt en una carpeta de POSTULAR POR PORTAL.
+    accion: "enviada" o "descartada". Solo acepta carpetas que cola.py
+    pone hoy en ese estado: no se puede escribir en una ruta inventada.
+    """
+    if accion not in ("enviada", "descartada"):
+        return {"ok": False, "mensaje": "Acción desconocida."}
+    estados, error = leer_cola()
+    if error:
+        return {"ok": False, "mensaje": error}
+    if carpeta not in estados.get("POSTULAR POR PORTAL", []):
+        return {"ok": False, "mensaje": "Esa carpeta ya no está en Abrir portales. Actualiza el panel."}
+    registro = RAIZ / CARPETA_SALIDAS / carpeta / REGISTRO
+    if registro.exists():
+        return {"ok": False, "mensaje": "La carpeta ya tiene bewerbung_gesendet.txt."}
+
+    hoy = f"{datetime.now():%Y.%m.%d}"
+    if accion == "enviada":
+        texto = f"GESENDET AM: {hoy}\nVIA:         Portal\n"
+        mensaje = f"Enviada: {carpeta}"
+    else:
+        texto = f"GESENDET AM: -\nVIA:         Portal\nDESCARTADA AM: {hoy}\n"
+        mensaje = f"Descartada: {carpeta}"
+    registro.write_text(texto, encoding="utf-8")
+    return {"ok": True, "mensaje": mensaje}
 
 
 def leer_uso(dias=90):
@@ -243,6 +272,12 @@ class Panel(BaseHTTPRequestHandler):
             self.responder(404, {"error": "no existe"})
 
     def do_POST(self):
+        # Solo pedidos del propio panel. Cualquier página abierta en el
+        # navegador puede enviar pedidos a 127.0.0.1; Origin la delata.
+        if self.headers.get("Origin") not in (f"http://127.0.0.1:{PUERTO}",
+                                              f"http://localhost:{PUERTO}"):
+            self.responder(403, {"ok": False, "mensaje": "Pedido rechazado: no viene del panel."})
+            return
         largo = int(self.headers.get("Content-Length", 0))
         try:
             pedido = json.loads(self.rfile.read(largo) or b"{}")
@@ -275,6 +310,8 @@ class Panel(BaseHTTPRequestHandler):
             resultado = programar(pedido.get("hora"))
         elif self.path == "/api/cancelar":
             resultado = cancelar()
+        elif self.path == "/api/portal":
+            resultado = registrar_portal(str(pedido.get("carpeta") or ""), pedido.get("accion"))
         else:
             self.responder(404, {"error": "no existe"})
             return

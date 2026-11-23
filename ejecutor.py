@@ -52,8 +52,8 @@ GMAIL_LECTURA = ("mcp__claude_ai_Gmail__search_threads,mcp__claude_ai_Gmail__get
                  "mcp__claude_ai_Gmail__get_message")
 PERMISOS = {
     "filtrar": "Skill,Read,Write,Edit,Glob,Grep,Bash(mkdir:*),Bash(mv:*)",
-    "cv": "Skill,Read,Write,Edit,Glob,Grep,Bash(typst compile:*),Bash(python contar_paginas.py:*)",
-    "carta": "Skill,Read,Write,Edit,Glob,Grep,Bash(typst compile:*),Bash(python contar_paginas.py:*)",
+    "cv": "Skill,Read,Write,Edit,Glob,Grep,Bash(typst compile:*),Bash(python contar_paginas.py:*),Bash(python verificar_keywords.py:*)",
+    "carta": "Skill,Read,Write,Edit,Glob,Grep,Bash(typst compile:*),Bash(python contar_paginas.py:*),Bash(python verificar_keywords.py:*)",
     "correo": "Skill,Read,Write,Glob,Grep,Bash(python cola.py:*)",
     "nachfassen": "Skill,Read,Write,Edit,Glob,Grep,Bash(python cola.py:*),"
                   + "mcp__claude_ai_Gmail__create_draft",
@@ -70,6 +70,7 @@ ORDEN = [
     "LISTA PARA ANSCHREIBEN",
     "ENVIAR POR CORREO",
     "BORRADOR SIN ANHANG",
+    "BORRADOR LISTO",
     "ENVIADA · REVISAR",
     "POR FILTRAR",
     "SIN DOCUMENTOS",
@@ -88,16 +89,17 @@ CONFIG_INICIAL = {
         "BUSCAR OFERTAS": {"activo": True, "cantidad": 0},
         "VERIFICAR VIGENCIA": {"activo": True, "cantidad": 0},
         "FILTRAR MECANICO": {"activo": True, "cantidad": 0},
-        "PENDIENTE CAPTCHA": {"activo": False, "cantidad": 5},
-        "LISTA PARA ANSCHREIBEN": {"activo": True, "cantidad": 5},
-        "ENVIAR POR CORREO": {"activo": True, "cantidad": 5},
-        "BORRADOR SIN ANHANG": {"activo": True, "cantidad": 5},
-        "ENVIADA · REVISAR": {"activo": False, "cantidad": 5},
-        "POR FILTRAR": {"activo": True, "cantidad": 30},
-        "SIN DOCUMENTOS": {"activo": True, "cantidad": 5},
-        "POSTULAR POR PORTAL": {"activo": False, "cantidad": 5},
-        "SIN VÍA": {"activo": False, "cantidad": 5},
-        "SIN ANUNCIO": {"activo": False, "cantidad": 5},
+        "PENDIENTE CAPTCHA": {"activo": False, "cantidad": 0},
+        "LISTA PARA ANSCHREIBEN": {"activo": True, "cantidad": 0},
+        "ENVIAR POR CORREO": {"activo": True, "cantidad": 0},
+        "BORRADOR SIN ANHANG": {"activo": True, "cantidad": 0},
+        "BORRADOR LISTO": {"activo": True, "cantidad": 0},
+        "ENVIADA · REVISAR": {"activo": False, "cantidad": 0},
+        "POR FILTRAR": {"activo": True, "cantidad": 0},
+        "SIN DOCUMENTOS": {"activo": True, "cantidad": 0},
+        "POSTULAR POR PORTAL": {"activo": False, "cantidad": 0},
+        "SIN VÍA": {"activo": False, "cantidad": 0},
+        "SIN ANUNCIO": {"activo": False, "cantidad": 0},
     },
 }
 
@@ -232,11 +234,17 @@ def claude(corrida, titulo, instruccion, permisos):
     return True
 
 
+# Pasos donde importa llegar antes: las carpetas más nuevas van primero.
+NUEVAS_PRIMERO = {"POSTULAR POR PORTAL"}
+
+
 def rutas(estado, maximo):
     salida = python("cola.py", "--rutas")
     carpetas = [Path(linea.split("\t", 1)[1].strip())
                 for linea in salida.splitlines()
                 if linea.startswith(estado + "\t")]
+    if estado in NUEVAS_PRIMERO:
+        carpetas.reverse()
     return carpetas[:maximo]
 
 
@@ -341,6 +349,22 @@ def paso_adjuntar(corrida, n, interactivo, estado):
     return "adjuntos revisados (ver log)"
 
 
+def paso_confirmar(corrida, n, interactivo, estado):
+    corrida.avance(estado, 0, 1, "confirmar_envio.py")
+    args = ["confirmar_envio.py", "--aplicar"] + ([] if interactivo else ["--sin-navegador"])
+    corrida.anotar("confirmar_envio", python(*args))
+    corrida.avance(estado, 1, 1)
+    return "envíos revisados (ver log)"
+
+
+def paso_confirmar(corrida, n, interactivo, estado):
+    corrida.avance(estado, 0, 1, "confirmar_envio.py")
+    args = ["confirmar_envio.py", "--aplicar"] + ([] if interactivo else ["--sin-navegador"])
+    corrida.anotar("confirmar_envio", python(*args))
+    corrida.avance(estado, 1, 1)
+    return "envíos revisados (ver log)"
+
+
 def paso_captcha(corrida, n, interactivo, estado):
     carpetas = rutas(estado, n)
     if not carpetas:
@@ -391,6 +415,7 @@ PASOS = {
     "POSTULAR POR PORTAL": lambda c, n, i: abrir("BEWERBUNG URL", con_carpeta=True)(c, n, i, "POSTULAR POR PORTAL"),
     "SIN VÍA": lambda c, n, i: abrir("ENLACE")(c, n, i, "SIN VÍA"),
     "BORRADOR SIN ANHANG": lambda c, n, i: paso_adjuntar(c, n, i, "BORRADOR SIN ANHANG"),
+    "BORRADOR LISTO": lambda c, n, i: paso_confirmar(c, n, i, "BORRADOR LISTO"),
     "ENVIADA · REVISAR": lambda c, n, i: paso_nachfassen(c, n, i, "ENVIADA · REVISAR"),
     "SIN ANUNCIO": lambda c, n, i: paso_abrir_carpeta(c, n, i, "SIN ANUNCIO"),
 }
